@@ -1,4 +1,4 @@
-# Adam RMS Crud Generator"
+# Adam RMS Crud Generator
 
 This a generator to take a set of entity files in nest-js and creates nest js controllers and services for them. 
 This has been written for the [Adam RMS](https://github.com/bstudios/adam-rms) project.
