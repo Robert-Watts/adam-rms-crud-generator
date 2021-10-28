@@ -1,7 +1,10 @@
 import argparse
 import os
 
-def get_arguments() -> str:
+from jinja2 import Environment, FileSystemLoader
+
+
+def get_arguments():
     """
     Gets the CLI arguments and returns them
 
@@ -9,8 +12,13 @@ def get_arguments() -> str:
     """
     parser = argparse.ArgumentParser(description='Write services and controllers for a adam-rms entity.')
     parser.add_argument('path', type=str, help='The path of a entity or root directory')
+    parser.add_argument('--disable_spec', action='store_true', help="Don't generate spec files")
+    parser.add_argument('--disable_controller', action='store_true', help="Don't generate controller files")
+    parser.add_argument('--disable_service', action='store_true', help="Don't generate service files")
+
     args = parser.parse_args()
-    return args.path
+    return args
+
 
 def get_all_entities(path: str) -> [str]:
     """
@@ -20,7 +28,7 @@ def get_all_entities(path: str) -> [str]:
     :param path: The path to look up - str
     :return: An array of strings
     """
-    if(os.path.isfile(path)):
+    if (os.path.isfile(path)):
         return [path]
     else:
         fname = []
@@ -30,28 +38,124 @@ def get_all_entities(path: str) -> [str]:
                     fname.append(os.path.join(root, f))
         return fname
 
+
 def get_entity_name_and_folder(path: str):
     """
     Takes the path and gets the entity name and folder
     :param path: The path to look up - str
     :return: The directory of the entity and the name (without entity.ts)
     """
-    return os.path.dirname(path),os.path.basename(path).split(".")[0]
+    return os.path.dirname(path), os.path.basename(path).split(".")[0]
 
-def write_service(entity_path: str, entity_name: str):
-    pass
 
-def write_controller(entity_path, entity_name: str):
-    pass
+def write_service(entity_path: str, entity_name: str, jinja_env: Environment, disable_spec: bool = False):
+    """
+    Takes the name and path of an entity and creates a service.ts file and a service.spec.ts file for that entity.
+
+    :param entity_path: The path of the entity
+    :param entity_name: The name of the entity
+    :jinja_env entity_name: The jinja Environment
+    """
+
+    def _generate_variables():
+        """
+        Uses the variables inherited from the parent function to generate the variables dictionary for the templates
+        :return: A dictionary
+        """
+        return {
+            "entity_name": entity_name.capitalize()
+        }
+
+    # Generate the file names and variables
+    template_variables = _generate_variables()
+    service_file_name = "%s.service.ts" % (entity_name)
+    spec_file_name = "%s.service.spec.ts" % (entity_name)
+
+    # Get the templates
+    service_template = jinja_env.get_template('service.ts')
+    spec_template = jinja_env.get_template('service.spec.ts')
+
+    # Write the service file
+    with open(os.path.join(entity_path, service_file_name), 'w') as file:
+        file.write(service_template.render(template_variables))
+        indent_print("Created %s" % (service_file_name))
+
+    # Write the service spec file
+    if (not disable_spec):
+        with open(os.path.join(entity_path, spec_file_name), 'w') as file:
+            file.write(spec_template.render(template_variables))
+            indent_print("Created %s" % (spec_file_name))
+
+
+def write_controller(entity_path: str, entity_name: str, jinja_env: Environment, disable_spec: bool = False):
+    """
+    Takes the name and path of an entity and creates a controller.ts file and a controller.spec.ts file for that entity.
+
+    :param entity_path: The path of the entity
+    :param entity_name: The name of the entity
+    :jinja_env entity_name: The jinja Environment
+    """
+
+    def _generate_variables():
+        """
+        Uses the variables inherited from the parent function to generate the variables dictionary for the templates
+        :return: A dictionary
+        """
+        return {
+            "entity_name": entity_name.capitalize()
+        }
+
+    # Generate the file names and variables
+    template_variables = _generate_variables()
+    controller_file_name = "%s.controller.ts" % (entity_name)
+    spec_file_name = "%s.controller.spec.ts" % (entity_name)
+
+    # Get the templates
+    controller_template = jinja_env.get_template('controller.ts')
+    spec_template = jinja_env.get_template('controller.spec.ts')
+
+    # Write the controller file
+    with open(os.path.join(entity_path, controller_file_name), 'w') as file:
+        file.write(controller_template.render(template_variables))
+        indent_print("Created %s" % (controller_file_name))
+
+    # Write the controller spec file
+    if (not disable_spec):
+        with open(os.path.join(entity_path, spec_file_name), 'w') as file:
+            file.write(spec_template.render(template_variables))
+            indent_print("Created %s" % (spec_file_name))
+
+def indent_print(string: str):
+    """
+    Output a string in the form
+    :param string: A string to output "     --> %s"
+    """
+    print("     --> %s" % (string))
+
+
+def create_jinja_env(template_folder: str = os.path.join(os.path.dirname(__file__), "templates")):
+    return Environment(
+        loader=FileSystemLoader(template_folder)
+    )
+
 
 def main():
-    path = get_arguments()
+    arguments = get_arguments()
+    path = arguments.path
     entities = get_all_entities(path)
+
+    jinja_env = create_jinja_env()
+
     for entity_path in entities:
-        entity_name, entity_folder = get_entity_name_and_folder(entity_path)
+        entity_folder, entity_name = get_entity_name_and_folder(entity_path)
         print("Writing CRUD for %s in %s" % (entity_name, entity_folder))
-        write_service(entity_folder, entity_name)
-        write_controller(entity_folder, entity_name)
+
+        if (not arguments.disable_service):
+            write_service(entity_folder, entity_name, jinja_env, arguments.disable_spec)
+
+        if (not arguments.disable_controller):
+            write_controller(entity_folder, entity_name, jinja_env, arguments.disable_spec)
+
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,1 @@
+console.log("Controller Spec for {{ entity_name }}")
