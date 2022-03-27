@@ -19,3 +19,4 @@ After either the path or file you can disable certain features with the followin
 | --disable_spec       | Don't generate spec files       |
 | --disable_controller | Don't generate controller files |
 | --disable_service    | Don't generate service files    |
+| --disable_module    | Don't generate module files    |

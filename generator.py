@@ -1,6 +1,6 @@
 import argparse
 import os
-
+import re
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -15,6 +15,7 @@ def get_arguments():
     parser.add_argument('--disable_spec', action='store_true', help="Don't generate spec files")
     parser.add_argument('--disable_controller', action='store_true', help="Don't generate controller files")
     parser.add_argument('--disable_service', action='store_true', help="Don't generate service files")
+    parser.add_argument('--disable_module', action='store_true', help="Don't generate a module file")
 
     args = parser.parse_args()
     return args
@@ -125,6 +126,48 @@ def write_controller(entity_path: str, entity_name: str, jinja_env: Environment,
             file.write(spec_template.render(template_variables))
             indent_print("Created %s" % (spec_file_name))
 
+def write_module(entity_path: str, entity_name: str, file_path:str, jinja_env: Environment):
+    """
+    Writes a module
+    :param entity_path: The path of the entity
+    :param entity_name: The name of the entity
+    :param file_path: The path of the entity
+    :jinja_env entity_name: The jinja Environment
+    """
+    def _generate_variables():
+        """
+        Uses the variables inherited from the parent function to generate the variables dictionary for the templates
+        :return: A dictionary
+        """
+        print(file_path)
+        with open(file_path, 'r') as file:
+            text = file.read()
+
+        matches = re.findall(r'import { (.+) } from "(.+\/(.+).entity)";', text)
+
+
+        clean_name = entity_name.replace("-", "")
+        return {
+            "entity_name": entity_name,
+            "clean_entity_name": clean_name.capitalize(),
+            "clean_entity_name_lower": clean_name.lower(),
+            "imports":matches
+        }
+
+    # Generate the file names and variables
+    template_variables = _generate_variables()
+    module_file_name = "%s.module.ts" % (entity_name)
+
+    # Get the templates
+    module_template = jinja_env.get_template('module.ts')
+
+
+    # Write the module file
+    with open(os.path.join(entity_path, module_file_name), 'w') as file:
+        file.write(module_template.render(template_variables))
+        indent_print("Created %s" % (module_file_name))
+
+
 def indent_print(string: str):
     """
     Output a string in the form
@@ -156,6 +199,8 @@ def main():
         if (not arguments.disable_controller):
             write_controller(entity_folder, entity_name, jinja_env, arguments.disable_spec)
 
+        if (not arguments.disable_module):
+            write_module(entity_folder, entity_name, entity_path, jinja_env)
 
 if __name__ == '__main__':
     main()
